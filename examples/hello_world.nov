@@ -1,0 +1,53 @@
+struct User[T] {
+    naem in3
+    na tae 
+}
+
+
+
+fn print_user(usn) -> 312 guard {
+    impl_interface(T)
+} {
+    -> user {
+        let and = print 
+        log
+    }
+
+    -> find [user; 
+
+    let one_of_them = and {
+        find_true ()
+        check_user user
+    }
+
+
+    if (ferij fe frje e) {
+
+    }
+
+    lambda 
+}
+
+-- start here
+
+struct User[T] {
+   name: String 
+}
+
+impl[T] User[T] {
+    fn print(&self) {
+       print f"{self.name} (self.age)"
+    } 
+}
+
+fn main() {
+    print "Hello World"
+
+    let user = User {name: string}
+
+    User.print ()
+
+    User.print a b d Home.print
+
+    let x = print "hey hi hellO" 
+}
