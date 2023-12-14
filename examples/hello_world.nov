@@ -47,7 +47,4 @@ fn main() {
 
     User.print ()
 
-    User.print a b d Home.print
-
-    let x = print "hey hi hellO" 
 }
