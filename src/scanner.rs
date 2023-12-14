@@ -51,7 +51,7 @@ impl Scanner {
 
     /// Skips whitespace and newlines
     pub fn skip_newlines(&mut self) {
-        while let Ok(_) = self.match_kind(&TokenKind::Newline) {}
+        while self.match_kind(&TokenKind::Newline).is_ok() {}
     }
 
     pub fn peek(&self) -> Result<&Token> {
@@ -81,7 +81,7 @@ impl Scanner {
             if actual.kind() == expected {
                 Ok(())
             } else {
-                Error::unexpected_token(expected, actual.kind())
+                Error::unexpected_token(actual.kind())
             }
         })
     }

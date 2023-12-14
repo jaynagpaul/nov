@@ -24,6 +24,12 @@ pub enum TokenKind {
     RBrace,
     Newline,
 
+    // Arithmetic
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
     // Literals
     StringLit(String),
     IntLit(i64),
@@ -101,12 +107,15 @@ impl Tokenizer {
         loop {
             let c = match self.advance() {
                 Some(c) => c,
-                None => match state {
-                    State::StringLit(_) => return self.error(UnexpectedEof),
-                    State::Start | State::Newline | State::Ident(_) | State::IntLit(_) => {
-                        return self.error(ExpectedEof)
+                None => {
+                    return match state {
+                        State::Start => self.error(ExpectedEof),
+                        State::StringLit(_) => return self.error(UnexpectedEof),
+                        State::Newline => self.token(Newline),
+                        State::Ident(ident) => self.token(Ident(ident)),
+                        State::IntLit(str) => self.token(IntLit(str.parse().unwrap())),
                     }
-                },
+                }
             };
 
             match state {
@@ -115,16 +124,21 @@ impl Tokenizer {
                     ')' => return self.token(RParen),
                     '{' => return self.token(LBrace),
                     '}' => return self.token(RBrace),
+                    '+' => return self.token(Plus),
+                    '-' => return self.token(Minus),
+                    '*' => return self.token(Star),
+                    '/' => return self.token(Slash),
 
                     '\n' => state = State::Newline,
 
                     c if Self::is_whitespace(c) => continue,
 
                     c if c.is_alphabetic() => state = State::Ident(c.to_string()),
+                    c if c.is_numeric() => state = State::IntLit(c.to_string()),
 
                     '"' => state = State::StringLit(String::new()),
 
-                    _ => unimplemented!(),
+                    c => panic!("Unexpected char {:?}", c),
                 },
 
                 // To compress multiple newlines into one
@@ -168,7 +182,7 @@ impl Tokenizer {
 
                     _ => {
                         self.backtrack();
-                        return self.token(IntLit(lit.parse::<i64>().unwrap()));
+                        return self.token(IntLit(lit.parse().unwrap()));
                     }
                 },
             }

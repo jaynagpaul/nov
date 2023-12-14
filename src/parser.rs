@@ -2,10 +2,7 @@ use crate::{tokenize, Scanner, Token, TokenKind};
 
 #[derive(Debug)]
 pub enum Error {
-    UnexpectedToken {
-        expected: TokenKind,
-        actual: TokenKind,
-    },
+    UnexpectedToken { actual: TokenKind },
 
     MissingExpr,
 
@@ -13,9 +10,8 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn unexpected_token<R>(expected: &TokenKind, actual: &TokenKind) -> Result<R> {
+    pub fn unexpected_token<R>(actual: &TokenKind) -> Result<R> {
         Err(Self::UnexpectedToken {
-            expected: expected.clone(),
             actual: actual.clone(),
         })
     }
@@ -24,8 +20,8 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::UnexpectedToken { expected, actual } => {
-                write!(f, "Expected token {:?}, got {:?}", expected, actual)
+            Error::UnexpectedToken { actual } => {
+                write!(f, "Expected different token, got {:?}", actual)
             }
             Error::UnexpectedEof => write!(f, "Unexpected EOF"),
             Error::MissingExpr => write!(f, "Missing expresssion"),
@@ -80,7 +76,6 @@ fn fn_decl(s: &mut Scanner) -> Result<FnDecl> {
         Ident(name) => name,
         actual => {
             return Err(Error::UnexpectedToken {
-                expected: Ident("<Fn Name>".to_owned()),
                 actual: actual.clone(),
             })
         }
@@ -142,20 +137,18 @@ pub struct FnCallStmt {
 fn fn_call_stmt(s: &mut Scanner) -> Result<FnCallStmt> {
     let name = match s.advance()?.kind() {
         TokenKind::Ident(name) => name.to_string(),
-        actual => {
-            return Error::unexpected_token(&TokenKind::Ident("<Fn Name>".to_string()), actual)
-        }
+        actual => return Error::unexpected_token(actual),
     };
 
-    let args = exprs(s)?;
+    let args = atom_exprs(s)?;
 
     Ok(FnCallStmt { name, args })
 }
 
-/// expr expr+
-fn exprs(s: &mut Scanner) -> Result<Vec<Expr>> {
+/// atom_expr atom_expr+
+fn atom_exprs(s: &mut Scanner) -> Result<Vec<Expr>> {
     let mut exprs = Vec::new();
-    while let Ok(expr) = s.attempt(expr) {
+    while let Ok(expr) = s.attempt(atom_expr) {
         exprs.push(expr);
     }
 
@@ -169,14 +162,56 @@ fn exprs(s: &mut Scanner) -> Result<Vec<Expr>> {
 /// (fn_call stmt) | StringLit | IntLit
 #[derive(Debug)]
 pub enum Expr {
+    BinaryOp(BinOpExpr),
     FnCall(FnCallStmt),
     StringLit(String),
     IntLit(i64),
 }
-fn expr(s: &mut Scanner) -> Result<Expr> {
-    let expr_options = [paren_fn_call_stmt, string_lit, int_lit];
 
-    s.attempt_all(&expr_options)
+fn expr(s: &mut Scanner) -> Result<Expr> {
+    expr_bp(s, 0)
+}
+
+/// Takes in the minimum binding power, stops evaluating when the left binding power is less than the minimum
+fn expr_bp(s: &mut Scanner, min_bp: u8) -> Result<Expr> {
+    let mut lhs = atom_expr(s)?;
+
+    loop {
+        let op = match s.peek() {
+            Ok(t) if t.kind() == &TokenKind::Newline => break,
+            Err(_) => break,
+
+            Ok(tok) => BinOp::from_token_kind(tok.kind())?,
+        };
+
+        let (l_bp, r_bp) = op.infix_binding_power();
+
+        if l_bp < min_bp {
+            break;
+        }
+
+        s.advance().unwrap();
+
+        let rhs = expr_bp(s, r_bp)?;
+
+        lhs = Expr::BinaryOp(BinOpExpr {
+            left: Box::new(lhs),
+            op,
+            right: Box::new(rhs),
+        })
+    }
+
+    Ok(lhs)
+}
+
+fn atom_expr(s: &mut Scanner) -> Result<Expr> {
+    match s.peek()?.kind() {
+        TokenKind::LParen => paren_fn_call_stmt(s),
+        TokenKind::StringLit(_) => string_lit(s),
+        TokenKind::IntLit(_) => int_lit(s),
+
+        actual => Error::unexpected_token(actual),
+    }
 }
 
 fn paren_fn_call_stmt(s: &mut Scanner) -> Result<Expr> {
@@ -192,14 +227,52 @@ fn paren_fn_call_stmt(s: &mut Scanner) -> Result<Expr> {
 fn string_lit(s: &mut Scanner) -> Result<Expr> {
     match s.advance()?.kind() {
         TokenKind::StringLit(s) => Ok(Expr::StringLit(s.clone())),
-        other => Error::unexpected_token(&TokenKind::StringLit("<string>".to_owned()), other),
+        other => Error::unexpected_token(other),
     }
 }
 
 fn int_lit(s: &mut Scanner) -> Result<Expr> {
     match s.advance()?.kind() {
         TokenKind::IntLit(i) => Ok(Expr::IntLit(*i)),
-        other => Error::unexpected_token(&TokenKind::IntLit(1234), other),
+        other => Error::unexpected_token(other),
+    }
+}
+
+#[derive(Debug)]
+struct BinOpExpr {
+    left: Box<Expr>,
+    op: BinOp,
+    right: Box<Expr>,
+}
+
+#[derive(Debug)]
+enum BinOp {
+    Plus,
+    Minus,
+    Star,
+    Slash,
+}
+
+impl BinOp {
+    pub fn from_token_kind(kind: &TokenKind) -> Result<Self> {
+        let op = match kind {
+            TokenKind::Plus => Self::Plus,
+            TokenKind::Minus => Self::Minus,
+            TokenKind::Star => Self::Star,
+            TokenKind::Slash => Self::Slash,
+
+            other => return Error::unexpected_token(other),
+        };
+
+        Ok(op)
+    }
+
+    pub fn infix_binding_power(&self) -> (u8, u8) {
+        use BinOp::*;
+        match self {
+            Plus | Minus => (1, 2),
+            Star | Slash => (3, 4),
+        }
     }
 }
 
@@ -228,6 +301,52 @@ mod tests {
 
         let mut scanner = Scanner::new(tokens);
         program(&mut scanner).unwrap()
+    }
+
+    #[test]
+    fn test_arithmetic() {
+        let content = r#"1 + 2 * 4 - 3 "#;
+
+        let (tokens, _) = tokenize(content);
+
+        let mut scanner = Scanner::new(tokens);
+
+        let expr = expr(&mut scanner);
+
+        check(
+            expr,
+            expect![[r#"
+                Ok(
+                    BinaryOp(
+                        BinOpExpr {
+                            left: BinaryOp(
+                                BinOpExpr {
+                                    left: IntLit(
+                                        1,
+                                    ),
+                                    op: Plus,
+                                    right: BinaryOp(
+                                        BinOpExpr {
+                                            left: IntLit(
+                                                2,
+                                            ),
+                                            op: Star,
+                                            right: IntLit(
+                                                4,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            ),
+                            op: Minus,
+                            right: IntLit(
+                                3,
+                            ),
+                        },
+                    ),
+                )
+            "#]],
+        )
     }
 
     #[test]
