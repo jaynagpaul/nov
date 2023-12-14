@@ -22,6 +22,10 @@ pub enum TokenKind {
     RParen,
     LBrace,
     RBrace,
+
+    Equals,
+
+    // Significant Whitespace
     Newline,
 
     // Arithmetic
@@ -37,6 +41,7 @@ pub enum TokenKind {
 
     // Keywords
     Fn,
+    Let,
 }
 
 struct Tokenizer {
@@ -124,10 +129,13 @@ impl Tokenizer {
                     ')' => return self.token(RParen),
                     '{' => return self.token(LBrace),
                     '}' => return self.token(RBrace),
+
                     '+' => return self.token(Plus),
                     '-' => return self.token(Minus),
                     '*' => return self.token(Star),
                     '/' => return self.token(Slash),
+
+                    '=' => return self.token(Equals),
 
                     '\n' => state = State::Newline,
 
@@ -161,6 +169,7 @@ impl Tokenizer {
 
                         match ident.as_str() {
                             "fn" => return self.token(Fn),
+                            "let" => return self.token(Let),
                             _ => return self.token(Ident(ident)),
                         }
                     }
@@ -213,19 +222,14 @@ impl Tokenizer {
     }
 
     fn advance(&mut self) -> Option<char> {
-        let c = self.input.get(self.loc.pos).cloned();
+        let c = self.input.get(self.loc.pos).cloned()?;
 
-        match c {
-            Some(c) => {
-                if c == '\n' {
-                    self.loc.line += 1;
-                }
-                self.loc.pos += 1;
-
-                Some(c)
-            }
-            None => return None,
+        if c == '\n' {
+            self.loc.line += 1;
         }
+        self.loc.pos += 1;
+
+        Some(c)
     }
 }
 

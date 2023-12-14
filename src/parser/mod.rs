@@ -148,30 +148,32 @@ mod tests {
         check(
             program,
             expect![[r#"
-            Program {
-                decls: [
-                    Fn(
-                        FnDecl {
-                            name: "main",
-                            block: Block {
-                                stmts: [
-                                    FnCall(
-                                        FnCallStmt {
-                                            name: "print",
-                                            args: [
-                                                StringLit(
-                                                    "hello world",
-                                                ),
-                                            ],
-                                        },
-                                    ),
-                                ],
+                Program {
+                    decls: [
+                        Fn(
+                            FnDecl {
+                                name: "main",
+                                block: Block {
+                                    stmts: [
+                                        Expr(
+                                            FnCall(
+                                                FnCall {
+                                                    name: "print",
+                                                    args: [
+                                                        StringLit(
+                                                            "hello world",
+                                                        ),
+                                                    ],
+                                                },
+                                            ),
+                                        ),
+                                    ],
+                                },
                             },
-                        },
-                    ),
-                ],
-            }
-        "#]],
+                        ),
+                    ],
+                }
+            "#]],
         )
     }
 
@@ -185,47 +187,49 @@ mod tests {
         check(
             program,
             expect![[r#"
-            Program {
-                decls: [
-                    Fn(
-                        FnDecl {
-                            name: "main",
-                            block: Block {
-                                stmts: [
-                                    FnCall(
-                                        FnCallStmt {
-                                            name: "print",
-                                            args: [
-                                                StringLit(
-                                                    "1 + 1 = ",
-                                                ),
-                                                FnCall(
-                                                    FnCallStmt {
-                                                        name: "plus",
-                                                        args: [
-                                                            StringLit(
-                                                                "1",
-                                                            ),
-                                                            StringLit(
-                                                                "1",
-                                                            ),
-                                                        ],
-                                                    },
-                                                ),
-                                            ],
-                                        },
-                                    ),
-                                ],
+                Program {
+                    decls: [
+                        Fn(
+                            FnDecl {
+                                name: "main",
+                                block: Block {
+                                    stmts: [
+                                        Expr(
+                                            FnCall(
+                                                FnCall {
+                                                    name: "print",
+                                                    args: [
+                                                        StringLit(
+                                                            "1 + 1 = ",
+                                                        ),
+                                                        FnCall(
+                                                            FnCall {
+                                                                name: "plus",
+                                                                args: [
+                                                                    StringLit(
+                                                                        "1",
+                                                                    ),
+                                                                    StringLit(
+                                                                        "1",
+                                                                    ),
+                                                                ],
+                                                            },
+                                                        ),
+                                                    ],
+                                                },
+                                            ),
+                                        ),
+                                    ],
+                                },
                             },
-                        },
-                    ),
-                ],
-            }
-        "#]],
+                        ),
+                    ],
+                }
+            "#]],
         );
     }
 
-    fn check<T: std::fmt::Debug>(actual: T, expect: Expect) {
+    pub fn check<T: std::fmt::Debug>(actual: T, expect: Expect) {
         expect.assert_debug_eq(&actual);
     }
 }

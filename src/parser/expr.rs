@@ -1,10 +1,6 @@
 use crate::TokenKind;
 
-use super::{
-    scanner::Scanner,
-    stmt::{fn_call_stmt, FnCallStmt},
-    Error, Result,
-};
+use super::{scanner::Scanner, stmt::naked_fn_call, Error, Result};
 
 /// atom_expr atom_expr+
 pub fn atom_exprs(s: &mut Scanner) -> Result<Vec<Expr>> {
@@ -24,7 +20,7 @@ pub fn atom_exprs(s: &mut Scanner) -> Result<Vec<Expr>> {
 #[derive(Debug)]
 pub enum Expr {
     BinaryOp(BinOpExpr),
-    FnCall(FnCallStmt),
+    FnCall(FnCall),
     StringLit(String),
     IntLit(i64),
 }
@@ -67,7 +63,7 @@ fn expr_bp(s: &mut Scanner, min_bp: u8) -> Result<Expr> {
 
 fn atom_expr(s: &mut Scanner) -> Result<Expr> {
     match s.peek()?.kind() {
-        TokenKind::LParen => paren_fn_call_stmt(s),
+        TokenKind::LParen => paren_fn_call(s),
         TokenKind::StringLit(_) => string_lit(s),
         TokenKind::IntLit(_) => int_lit(s),
 
@@ -75,14 +71,21 @@ fn atom_expr(s: &mut Scanner) -> Result<Expr> {
     }
 }
 
-fn paren_fn_call_stmt(s: &mut Scanner) -> Result<Expr> {
+#[derive(Debug)]
+pub struct FnCall {
+    pub name: String,
+
+    pub args: Vec<Expr>,
+}
+
+fn paren_fn_call(s: &mut Scanner) -> Result<Expr> {
     use TokenKind::{LParen, RParen};
 
     s.match_kind(&LParen)?;
-    let call = fn_call_stmt(s)?;
+    let call = naked_fn_call(s)?;
     s.match_kind(&RParen)?;
 
-    Ok(Expr::FnCall(call))
+    Ok(call)
 }
 
 fn string_lit(s: &mut Scanner) -> Result<Expr> {
